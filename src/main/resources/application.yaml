@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: binance-copy-leader
+binance:
+  # 복사거래(리더) 전용 설정
+  copy-trading:
+    key:
+    secret:
+    base-url: https://api.binance.com
+
+  # 선물 거래(포지션 조회·주문) 전용 설정
+  futures:
+    key:
+    secret:
+    base-url: https://fapi.binance.com
+telegram:
+  bot-token:
+  chat-id:
+
+
