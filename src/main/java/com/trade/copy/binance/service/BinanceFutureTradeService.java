@@ -20,21 +20,24 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.stereotype.Service;
 
-
 @Service
 @RequiredArgsConstructor
 public class BinanceFutureTradeService {
 
-	private static final Logger logger = Logger.getLogger(BinanceFutureTradeService.class.getName());
+	private static final Logger logger =
+		  Logger.getLogger(BinanceFutureTradeService.class.getName());
 
 	private final BinanceApiHelper apiHelper;
 	private final BinanceProperties props;
 	private final ExchangeInfoCache exchangeInfoCache;
 	private final TelegramMessageSender telegram;
 
-	// ========================
-	// 1) 미체결 주문 일괄 취소
-	// ========================
+	/**
+	 * 미체결 주문 일괄 취소
+	 *
+	 * @param symbol
+	 * @throws Exception
+	 */
 	public void cancelAllOpenOrders(String symbol) throws Exception {
 		Map<String, String> params = new HashMap<>();
 		params.put("symbol", symbol);
@@ -44,11 +47,16 @@ public class BinanceFutureTradeService {
 		logger.info("▶ cancelAllOpenOrders 응답 바디 = " + body);
 	}
 
-	// ===========================
-	// 2) 해당 심볼로 포지션 보유 여부 확인
-	// ===========================
+	/**
+	 * 해당 심볼로 포지션 보유 여부 확인
+	 *
+	 * @param symbol
+	 * @return
+	 * @throws Exception
+	 */
 	public boolean hasOpenPosition(String symbol) throws Exception {
-		String responseBody = apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
+		String responseBody =
+			  apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
 
 		if (responseBody == null || responseBody.isBlank() || responseBody.equals("[]")) {
 			logger.info("▶ hasOpenPosition - 빈 응답, 포지션 없음");
@@ -65,7 +73,9 @@ public class BinanceFutureTradeService {
 
 			double amt = Double.parseDouble(pos.getString("positionAmt"));
 			boolean open = Math.abs(amt) > 0;
-			logger.info("▶ hasOpenPosition - symbol=" + respSymbol + ", positionAmt=" + amt + ", open=" + open);
+			logger.info(
+				  "▶ hasOpenPosition - symbol=" + respSymbol + ", positionAmt=" + amt + ", open=" +
+						open);
 			return open;
 		}
 
@@ -73,11 +83,16 @@ public class BinanceFutureTradeService {
 		return false;
 	}
 
-	// ===========================
-	// 3) 익절 조건 계산 및 알림 (롱/숏)
-	// ===========================
+	/**
+	 * 익절 조건 계산 및 알림
+	 *
+	 * @param symbol
+	 * @return
+	 * @throws Exception
+	 */
 	public boolean evaluateProfitTarget(String symbol) throws Exception {
-		String responseBody = apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
+		String responseBody =
+			  apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
 
 		if (responseBody == null || responseBody.isBlank() || responseBody.equals("[]")) {
 			logger.info("▶ evaluateProfitTarget - 빈 응답, 포지션 없음");
@@ -100,9 +115,7 @@ public class BinanceFutureTradeService {
 			double entryPrice = Double.parseDouble(pos.getString("entryPrice"));
 			double markPrice = Double.parseDouble(pos.getString("markPrice"));
 
-			// =====================================================
-			// 하단의 수수료율, 목표 퍼센트, 슬리피지 버퍼는 props에서 가져오도록 변경
-			// =====================================================
+			// 수수료율, 목표 퍼센트, 슬리피지 버퍼는 props에서 가져오도록 변경
 			double commissionRate = props.getCommissionRate();         // 예: 0.001 (0.1%)
 			double targetProfitPercent = props.getTargetProfitPercent(); // 예: 0.004 (0.4%)
 			double slippageBuffer = entryPrice * commissionRate * 2.0;
@@ -121,7 +134,8 @@ public class BinanceFutureTradeService {
 
 			logger.info(String.format(
 				  "▶ evaluateProfitTarget - symbol=%s, amt=%.6f, entry=%.4f, mark=%.4f, profitTarget=%.4f, shortTarget=%.4f, shouldTake=%s",
-				  symbol, amt, entryPrice, markPrice, profitTargetPrice, shortTargetPrice, shouldTakeProfit
+				  symbol, amt, entryPrice, markPrice, profitTargetPrice, shortTargetPrice,
+				  shouldTakeProfit
 			));
 
 			if (shouldTakeProfit) {
@@ -142,11 +156,15 @@ public class BinanceFutureTradeService {
 		return false;
 	}
 
-	// ===========================
-	// 4) 시장가 포지션 청산 (롱/숏 구분)
-	// ===========================
+	/**
+	 * 시장가 포지션 청산
+	 *
+	 * @param symbol
+	 * @throws Exception
+	 */
 	public void closePositionMarket(String symbol) throws Exception {
-		String responseBody = apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
+		String responseBody =
+			  apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
 
 		if (responseBody == null || responseBody.isBlank() || responseBody.equals("[]")) {
 			logger.info("▶ closePositionMarket - 빈 응답, 포지션 없음");
@@ -186,9 +204,13 @@ public class BinanceFutureTradeService {
 		logger.info("▶ closePositionMarket - 해당 심볼 포지션 없음");
 	}
 
-	// ===========================
-	// 5) RSI 진입 조건 확인
-	// ===========================
+	/**
+	 * RSI 진입 조건 확인
+	 *
+	 * @param symbol
+	 * @return
+	 * @throws Exception
+	 */
 	public boolean evaluateRsiEntry(String symbol) throws Exception {
 		String url = String.format("%s/fapi/v1/klines?symbol=%s&interval=15m&limit=16",
 			  props.getBaseUrl(), symbol);
@@ -232,7 +254,8 @@ public class BinanceFutureTradeService {
 
 		// 저가 비교 (arr.length()-3 = 인덱스 13, arr.length()-2 = 인덱스 14)
 		double prevLow = Double.parseDouble(arr.getJSONArray(arr.length() - 3).getString(3));
-		double latestClosedLow = Double.parseDouble(arr.getJSONArray(arr.length() - 2).getString(3));
+		double latestClosedLow =
+			  Double.parseDouble(arr.getJSONArray(arr.length() - 2).getString(3));
 		logger.info(String.format("▶ evaluateRsiEntry - prevLow=%.4f, latestClosedLow=%.4f",
 			  prevLow, latestClosedLow));
 
@@ -242,32 +265,31 @@ public class BinanceFutureTradeService {
 		return result;
 	}
 
-	// =============================================
-	// 6) 시장가 포지션 진입 (레버리지 설정 포함, 인메모리 캐시 사용)
-	// =============================================
+	/**
+	 * 시장가 포지션 진입
+	 *
+	 * @param symbol
+	 * @param side
+	 * @param quantity
+	 * @throws Exception
+	 */
 	public void openMarketPosition(String symbol, String side, String quantity) throws Exception {
-		// ───────────────────────────────────────────────────────────────────────────────
-		// 0) 마진 모드를 CROSS로 설정
-		// ───────────────────────────────────────────────────────────────────────────────
+		// 마진 모드를 CROSS로 설정
 		Map<String, String> marginParams = new HashMap<>();
 		marginParams.put("symbol", symbol);
-		marginParams.put("marginType", props.getMarginType());  // CROSSED: Cross 마진, ISOLATED: Isolated 마진
+		marginParams.put("marginType",
+			  props.getMarginType());  // CROSSED: Cross 마진, ISOLATED: Isolated 마진
 		String marginBody = apiHelper.sendPostRequest("/fapi/v1/marginType", marginParams);
 		logger.info("▶ setMarginType (CROSS) 응답 바디 = " + marginBody);
 
-		// ------------------------------------------------------------
-		// 1) 레버리지 설정 (외부 props.getDefaultLeverage() 사용)
-		// ------------------------------------------------------------
+		// 레버리지 설정
 		Map<String, String> leverageParams = new HashMap<>();
 		leverageParams.put("symbol", symbol);
 		leverageParams.put("leverage", String.valueOf(props.getDefaultLeverage()));
 		String levBody = apiHelper.sendPostRequest("/fapi/v1/leverage", leverageParams);
 		logger.info("▶ setLeverage 응답 바디 = " + levBody);
 
-		// ------------------------------------------------------------
-		// 2) quantity 파라미터가 null 또는 빈 문자열인 경우, MIN_NOTIONAL 기준 계산
-		//    → In-Memory 캐시(ExchangeInfoCache)에서 가져옴
-		// ------------------------------------------------------------
+		// quantity 파라미터가 null 또는 빈 문자열인 경우, MIN_NOTIONAL 기준 계산
 		String finalQuantity = quantity;
 		if (finalQuantity == null || finalQuantity.isBlank()) {
 			// 2-1) 현재 마크 가격 조회
@@ -291,9 +313,7 @@ public class BinanceFutureTradeService {
 				  .toPlainString();
 		}
 
-		// ------------------------------------------------------------
-		// 3) 헤지 모드 확인 → 포지션 사이드 설정 (LONG/SHORT)
-		// ------------------------------------------------------------
+		// 헤지 모드 확인 후 포지션 사이드 설정
 		String dualRes = apiHelper.sendGetRequest("/fapi/v1/positionSide/dual", Collections.emptyMap());
 		boolean isHedgeMode = new JSONObject(dualRes).getBoolean("dualSidePosition");
 
@@ -307,9 +327,7 @@ public class BinanceFutureTradeService {
 			orderParams.put("positionSide", positionSide);
 		}
 
-		// ------------------------------------------------------------
-		// 4) 시장가 주문 전송
-		// ------------------------------------------------------------
+		// 시장가 주문 전송
 		String orderRes = apiHelper.sendPostRequest("/fapi/v1/order", orderParams);
 		logger.info("▶ openMarketPosition - 주문 응답 바디 = " + orderRes);
 
