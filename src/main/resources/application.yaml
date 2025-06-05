@@ -1,6 +1,11 @@
 spring:
   application:
     name: binance-copy-leader
+logging:
+  file:
+    name: logs/app.log
+  level:
+    root: INFO
 binance:
   futures:
     # 바이낸스 선물 API 기본 URL
@@ -11,13 +16,13 @@ binance:
     # 마진 타입 (CROSSED, ISOLATED)
     margin-type: CROSSED
     # 기본 레버리지 (예: 10)
-    default-leverage: 10
+    default-leverage: 50
     # 수수료율 (0.1% → 0.001)
     commission-rate: 0.001
     # 목표 프로핏 퍼센트 (0.4% → 0.004)
     target-profit-percent: 0.004
     # recvWindow 허용 시간 (ms 단위, 예: 5000ms)
-    recv-window: 1000
+    recv-window: 5000
 telegram:
   bot-token:
   chat-id:
