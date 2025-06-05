@@ -29,7 +29,6 @@ public class AutoTradeStrategyService {
 		boolean hasPosition = binanceService.hasOpenPosition(symbol);
 
 		if (hasPosition) {
-
 			boolean shouldTakeProfit = binanceService.evaluateProfitTarget(symbol);
 			if (shouldTakeProfit) {
 				// 1. 열려있는 주문 모두 취소

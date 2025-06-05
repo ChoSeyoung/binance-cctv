@@ -18,10 +18,26 @@ repositories {
 }
 
 dependencies {
+    // Spring Web (Spring MVC, Jackson, validation 등)
     implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // @ConfigurationProperties 사용을 위한 프로세서
     implementation 'org.springframework.boot:spring-boot-configuration-processor'
+
+    // JSON 파싱 (JSONObject, JSONArray)
+    implementation 'org.json:json:20230227'
+
+    // Jakarta Annotation API (PostConstruct 등)
+    implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+
+    // Lombok (getter/setter, 생성자 자동 생성 등)
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
+    // 테스트용 의존성 (JUnit, Mockito 등)
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
