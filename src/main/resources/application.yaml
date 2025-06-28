@@ -1,6 +1,11 @@
 spring:
   application:
     name: binance-copy-leader
+logging:
+  file:
+    name: logs/app.log
+  level:
+    root: INFO
 binance:
   futures:
     # 바이낸스 선물 API 기본 URL

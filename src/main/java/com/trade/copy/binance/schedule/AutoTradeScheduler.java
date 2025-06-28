@@ -18,8 +18,8 @@ public class AutoTradeScheduler {
 		  "BTCUSDT",
 		  "ETHUSDT",
 		  "XRPUSDT",
-		  "BNBUSDT",
-		  "SOLUSDT"
+		  "SOLUSDT",
+		  "SUIUSDT"
 	);
 
 	// 매 15분마다 실행

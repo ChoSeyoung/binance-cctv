@@ -3,6 +3,7 @@ package com.trade.copy.binance.helper;
 import com.trade.copy.binance.config.BinanceHttpClient;
 import com.trade.copy.binance.config.BinanceProperties;
 import com.trade.copy.binance.util.SignatureUtil;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -32,19 +33,25 @@ public class BinanceApiHelper {
 	/**
 	 * 서버 시간 조회
 	 */
-	private long getFuturesServerTime() throws Exception {
+	private long getFuturesServerTime() {
 		String url = binanceProperties.getBaseUrl() + "/fapi/v1/time";
 		HttpRequest req = HttpRequest.newBuilder()
 			  .uri(URI.create(url))
 			  .GET()
 			  .build();
 
-		HttpResponse<String> res = httpClient.client.send(req, HttpResponse.BodyHandlers.ofString());
-		if (res.statusCode() != 200) {
-			throw new RuntimeException("서버 시간 조회 실패: " + res.body());
+		HttpResponse<String> res = null;
+		try {
+			res = httpClient.client.send(req, HttpResponse.BodyHandlers.ofString());
+
+			if (res.statusCode() != 200) {
+				throw new RuntimeException("서버 시간 조회 실패: " + res.body());
+			}
+
+			return new JSONObject(res.body()).getLong("serverTime");
+		} catch (IOException | InterruptedException e) {
+			throw new RuntimeException(e);
 		}
-		JSONObject obj = new JSONObject(res.body());
-		return obj.getLong("serverTime");
 	}
 
 	/**
@@ -104,7 +111,6 @@ public class BinanceApiHelper {
 			  .build();
 
 		HttpResponse<String> response = httpClient.client.send(request, HttpResponse.BodyHandlers.ofString());
-		logger.info("▶ GET " + path + " 응답 코드 = " + response.statusCode());
 
 		if (response.statusCode() != 200) {
 			throw new RuntimeException("Binance API Error (GET " + path + "): "
@@ -145,7 +151,6 @@ public class BinanceApiHelper {
 			  .build();
 
 		HttpResponse<String> response = httpClient.client.send(request, HttpResponse.BodyHandlers.ofString());
-		logger.info("▶ DELETE " + path + " 응답 코드 = " + response.statusCode());
 
 		if (response.statusCode() != 200) {
 			throw new RuntimeException("Binance API Error (DELETE " + path + "): "
@@ -157,7 +162,7 @@ public class BinanceApiHelper {
 	/**
 	 * 공통 POST 요청 (바디 없이 query string으로만 파라미터 전달)
 	 */
-	public String sendPostRequest(String path, Map<String, String> extraParams) throws Exception {
+	public String sendPostRequest(String path, Map<String, String> extraParams) {
 		long serverTime = getFuturesServerTime();
 		MultiValueMap<String, String> allParams = new LinkedMultiValueMap<>();
 
@@ -172,11 +177,16 @@ public class BinanceApiHelper {
 		}
 
 		String queryString = allParams.entrySet().stream()
-			  .map(e -> e.getKey() + "=" + e.getValue().get(0))
+			  .map(e -> e.getKey() + "=" + e.getValue().getFirst())
 			  .reduce((a, b) -> a + "&" + b)
 			  .orElse("");
 
-		String signature = SignatureUtil.generate(queryString, binanceProperties.getSecret());
+		String signature;
+		try {
+			signature = SignatureUtil.generate(queryString, binanceProperties.getSecret());
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 		String fullUrl = binanceProperties.getBaseUrl() + path + "?" + queryString + "&signature=" + signature;
 
 		HttpRequest request = HttpRequest.newBuilder()
@@ -185,8 +195,12 @@ public class BinanceApiHelper {
 			  .POST(HttpRequest.BodyPublishers.noBody())
 			  .build();
 
-		HttpResponse<String> response = httpClient.client.send(request, HttpResponse.BodyHandlers.ofString());
-		logger.info("▶ POST " + path + " 응답 코드 = " + response.statusCode());
+		HttpResponse<String> response;
+		try {
+			response = httpClient.client.send(request, HttpResponse.BodyHandlers.ofString());
+		} catch (IOException | InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 
 		if (response.statusCode() != 200) {
 			throw new RuntimeException("Binance API Error (POST " + path + "): "
