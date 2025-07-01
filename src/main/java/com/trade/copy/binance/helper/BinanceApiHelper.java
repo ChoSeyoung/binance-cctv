@@ -30,6 +30,38 @@ public class BinanceApiHelper {
 	private final BinanceProperties binanceProperties;
 	private final BinanceHttpClient httpClient;
 
+	// 서버와의 시간 차이(offset), 최초 1회 계산
+	private Long timeOffset = null;
+
+	private long getServerTime() {
+		String url = binanceProperties.getBaseUrl() + "/fapi/v1/time";
+		HttpRequest req = HttpRequest.newBuilder()
+			  .uri(URI.create(url))
+			  .GET()
+			  .build();
+
+		try {
+			HttpResponse<String> res = httpClient.client.send(req, HttpResponse.BodyHandlers.ofString());
+
+			if (res.statusCode() != 200) {
+				throw new RuntimeException("서버 시간 조회 실패: " + res.body());
+			}
+
+			return new JSONObject(res.body()).getLong("serverTime");
+		} catch (IOException | InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private long getAdjustedTimestamp() {
+		if (timeOffset == null) {
+			long serverTime = getServerTime();
+			timeOffset = serverTime - System.currentTimeMillis();
+			logger.info("📡 Binance 시간 offset: " + timeOffset + "ms");
+		}
+		return System.currentTimeMillis() + timeOffset;
+	}
+
 	/**
 	 * 서버 시간 조회
 	 */
@@ -77,11 +109,10 @@ public class BinanceApiHelper {
 	 * @return response body (String)
 	 */
 	public String sendGetRequest(String path, Map<String, String> extraParams) throws Exception {
-		long serverTime = getFuturesServerTime();
 		MultiValueMap<String, String> allParams = new LinkedMultiValueMap<>();
 
 		// 1) 서버 시간 + recvWindow
-		allParams.add("timestamp", String.valueOf(serverTime));
+		allParams.add("timestamp", String.valueOf(getAdjustedTimestamp()));
 		allParams.add("recvWindow", String.valueOf(binanceProperties.getRecvWindow()));
 
 		// 2) 추가 파라미터
@@ -123,10 +154,9 @@ public class BinanceApiHelper {
 	 * 공통 DELETE 요청
 	 */
 	public String sendDeleteRequest(String path, Map<String, String> extraParams) throws Exception {
-		long serverTime = getFuturesServerTime();
 		MultiValueMap<String, String> allParams = new LinkedMultiValueMap<>();
 
-		allParams.add("timestamp", String.valueOf(serverTime));
+		allParams.add("timestamp", String.valueOf(getAdjustedTimestamp()));
 		allParams.add("recvWindow", String.valueOf(binanceProperties.getRecvWindow()));
 		if (extraParams != null) {
 			extraParams.forEach((k, v) -> {
@@ -163,10 +193,9 @@ public class BinanceApiHelper {
 	 * 공통 POST 요청 (바디 없이 query string으로만 파라미터 전달)
 	 */
 	public String sendPostRequest(String path, Map<String, String> extraParams) {
-		long serverTime = getFuturesServerTime();
 		MultiValueMap<String, String> allParams = new LinkedMultiValueMap<>();
 
-		allParams.add("timestamp", String.valueOf(serverTime));
+		allParams.add("timestamp", String.valueOf(getAdjustedTimestamp()));
 		allParams.add("recvWindow", String.valueOf(binanceProperties.getRecvWindow()));
 		if (extraParams != null) {
 			extraParams.forEach((k, v) -> {

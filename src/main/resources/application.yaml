@@ -22,7 +22,7 @@ binance:
     # 목표 프로핏 퍼센트 (0.4% → 0.004)
     target-profit-percent: 0.004
     # recvWindow 허용 시간 (ms 단위, 예: 5000ms)
-    recv-window: 1000
+    recv-window: 5000
 telegram:
   bot-token:
   chat-id:
