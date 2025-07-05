@@ -16,7 +16,7 @@ binance:
     # 마진 타입 (CROSSED, ISOLATED)
     margin-type: CROSSED
     # 기본 레버리지 (예: 10)
-    default-leverage: 10
+    default-leverage: 50
     # 수수료율 (0.1% → 0.001)
     commission-rate: 0.001
     # 목표 프로핏 퍼센트 (0.4% → 0.004)

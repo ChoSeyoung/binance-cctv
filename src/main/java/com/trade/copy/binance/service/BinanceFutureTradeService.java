@@ -147,35 +147,31 @@ public class BinanceFutureTradeService {
 	 * @throws Exception
 	 */
 	public void closePositionMarket(String symbol) throws Exception {
-		String responseBody =
-			  apiHelper.sendGetRequest("/fapi/v3/positionRisk", Collections.emptyMap());
+		// 1. 포지션 목록 조회 (헷징 모드이므로 LONG/SHORT 따로 있음)
+		String response = apiHelper.sendGetRequest("/fapi/v2/positionRisk", Map.of("symbol", symbol));
+		JSONArray positions = new JSONArray(response);
 
-		if (responseBody == null || responseBody.isBlank() || responseBody.equals("[]")) {
-			return;
-		}
+		for (int i = 0; i < positions.length(); i++) {
+			JSONObject pos = positions.getJSONObject(i);
+			String positionSide = pos.getString("positionSide"); // "LONG" or "SHORT"
+			BigDecimal positionAmt = new BigDecimal(pos.getString("positionAmt"));
 
-		JSONArray arr = new JSONArray(responseBody);
-		for (int i = 0; i < arr.length(); i++) {
-			JSONObject pos = arr.getJSONObject(i);
-			if (!symbol.equals(pos.getString("symbol"))) {
-				continue;
-			}
+			// 2. 보유한 포지션만 청산 (LONG → >0, SHORT → <0)
+			if (positionAmt.compareTo(BigDecimal.ZERO) == 0) continue;
 
-			double amt = Double.parseDouble(pos.getString("positionAmt"));
-			if (amt == 0) {
-				return;
-			}
+			String side = positionSide.equals("LONG") ? "SELL" : "BUY";
+			BigDecimal quantity = positionAmt.abs();
 
-			String side = amt > 0 ? "SELL" : "BUY";
-			// BigDecimal을 써서 소숫점 불필요 제거
-			String quantity = BigDecimal.valueOf(Math.abs(amt))
-				  .stripTrailingZeros()
-				  .toPlainString();
+			// 3. 시장가, reduceOnly 주문 생성
+			Map<String, String> orderParams = new HashMap<>();
+			orderParams.put("symbol", symbol);
+			orderParams.put("side", side);
+			orderParams.put("type", "MARKET");
+			orderParams.put("quantity", quantity.toPlainString());
+			orderParams.put("positionSide", positionSide);
 
-			telegram.sendMessage("🔁 포지션 청산 시작: " + symbol + " " + side + " " + quantity);
-			// openMarketPosition 안에서 레버리지 및 주문 요청 처리
-			openMarketPosition(symbol, side, quantity);
-			return;
+			String result = apiHelper.sendPostRequest("/fapi/v1/order", orderParams);
+			System.out.println("✅ 포지션 청산 완료: " + symbol + " / " + positionSide + " / 수량 " + quantity);
 		}
 	}
 
