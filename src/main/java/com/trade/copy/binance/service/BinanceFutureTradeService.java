@@ -124,7 +124,7 @@ public class BinanceFutureTradeService {
 
 			if (shouldTakeProfit) {
 				String msg = String.format(
-					  "💰 익절 조건 충족: %s\n진입가: %.2f\n현재가: %.2f\n목표 익절가: %.2f",
+					  "💰 익절 조건 충족: %s\n진입가: %.4f\n현재가: %.4f\n목표 익절가: %.4f",
 					  symbol, entryPrice, markPrice, targetPrice
 				);
 				telegram.sendMessage(msg);
@@ -158,10 +158,9 @@ public class BinanceFutureTradeService {
 		for (int i = 0; i < positions.length(); i++) {
 			JSONObject pos = positions.getJSONObject(i);
 			String positionSide = pos.getString("positionSide"); // "LONG" or "SHORT"
+			if (!positionSide.equals(side)) continue;
 
 			String holdSide = positionSide.equals("LONG") ? "SELL" : "BUY";
-			if (!holdSide.equals(side)) continue;
-
 			BigDecimal positionAmt = new BigDecimal(pos.getString("positionAmt"));
 
 			// 2. 보유한 포지션만 청산 (LONG → >0, SHORT → <0)
@@ -172,7 +171,7 @@ public class BinanceFutureTradeService {
 			// 3. 시장가, reduceOnly 주문 생성
 			Map<String, String> orderParams = new HashMap<>();
 			orderParams.put("symbol", symbol);
-			orderParams.put("side", side);
+			orderParams.put("side", holdSide);
 			orderParams.put("type", "MARKET");
 			orderParams.put("quantity", quantity.toPlainString());
 			orderParams.put("positionSide", positionSide);
@@ -284,7 +283,7 @@ public class BinanceFutureTradeService {
 			int quantityPrecision = sInfo.getLotSizePrecision();
 
 			double targetNotional = minNotional * 1.05;
-			double rawQty = targetNotional / markPrice * 100;
+			double rawQty = targetNotional / markPrice * 1000;
 			finalQuantity = new BigDecimal(rawQty)
 				  .setScale(quantityPrecision, RoundingMode.UP)
 				  .toPlainString();

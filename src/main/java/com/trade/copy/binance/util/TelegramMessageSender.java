@@ -34,8 +34,7 @@ public class TelegramMessageSender {
 				  .build();
 
 			HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-			System.out.println("📨 Telegram 응답: " + response.body());
-
+			System.out.println("Telegram 응답: " + response.body());
 		} catch (Exception e) {
 			System.err.println("Telegram 메시지 전송 실패: " + e.getMessage());
 		}

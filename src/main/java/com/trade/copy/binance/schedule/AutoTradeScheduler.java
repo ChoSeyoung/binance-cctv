@@ -23,7 +23,11 @@ public class AutoTradeScheduler {
 		  "ETHUSDT",
 		  "XRPUSDT",
 		  "SOLUSDT",
-		  "SUIUSDT"
+		  "SUIUSDT",
+		  "TRUMPUSDT",
+		  "BNBUSDT",
+		  "DOGEUSDT",
+		  "HYPEUSDT"
 	);
 
 	// 매 15분마다 실행
